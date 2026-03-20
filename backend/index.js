@@ -27,10 +27,7 @@ app.use(express.json())
 app.use(cookieParser())
 
 app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "https://new-ai-lms-frontend.onrender.com"
-    ],
+    origin: "https://new-ai-lms-frontend.onrender.com",
     credentials: true
 }));
 
