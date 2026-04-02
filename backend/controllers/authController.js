@@ -132,21 +132,19 @@ export const googleSignup = async (req, res) => {
   try {
     const { name, email, role } = req.body;
 
-
     let user = await User.findOne({ email });
-    // If user already exists and has a password, block Google login
-    if (user && user.password) {
-      return res.status(400).json({ message: "User already signed up with email/password. Please use email login." });
-    }
-    // If user exists and has no password (Google user), log them in
+
+    // If user already exists, just log them in
     if (user) {
       const token = await genToken(user._id);
+
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,
         sameSite: "None",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
+
       return res.status(200).json(user);
     }
 
