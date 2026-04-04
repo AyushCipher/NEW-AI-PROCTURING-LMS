@@ -37,12 +37,9 @@ function EnrolledCourse() {
 
   useEffect(() => {
     if (enrolledCourses.length > 0) {
-      // Join course rooms for real-time announcements
-      const courseIds = enrolledCourses.map(c => c._id);
-      socket.emit('joinCourses', courseIds);
-
-      // Listen for new announcements
+      // Listen for new announcements (rooms are joined globally via useSocketCourseJoin hook)
       const handleNewAnnouncement = (announcement) => {
+        console.log('[EnrolledCourse] New announcement received:', announcement);
         toast.info(`New announcement for your course: ${announcement.title}`);
         
         // Update the announcement count
@@ -51,6 +48,7 @@ function EnrolledCourse() {
           const count = updated[announcement.course] || 0;
           updated[announcement.course] = count === 0 ? 1 : count + 1;
           localStorage.setItem(`announcementCount_${announcement.course}`, updated[announcement.course]);
+          console.log('[EnrolledCourse] Updated count for course', announcement.course, ':', updated[announcement.course]);
           return updated;
         });
       };

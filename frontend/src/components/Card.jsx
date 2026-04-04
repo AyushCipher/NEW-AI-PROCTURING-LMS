@@ -30,36 +30,44 @@ const CourseCard = ({ thumbnail, title, category, price, id, reviews }) => {
   const avgRating = calculateAverageRating(reviews);
   console.log("Average Rating:", avgRating);
 
-  // Only listen for announcements if user is enrolled in this course
+  // Listen for announcements - ALWAYS attach for debugging
   useEffect(() => {
-    if (!isEnrolled) {
-      console.log('User not enrolled in course', id, ', skipping announcement listener');
-      return;
-    }
+    console.log('[Card] Mounting listener for course:', id, 'IsEnrolled:', isEnrolled);
 
     const handleNewAnnouncement = (announcement) => {
       // Convert both IDs to strings for comparison (to handle ObjectId vs string)
       const announcementCourseId = String(announcement.course);
       const cardId = String(id);
       
-      console.log('Received newAnnouncement:', announcement, 'Card id:', cardId, 'Announcement course:', announcementCourseId, 'Is Enrolled:', isEnrolled);
+      console.log('[Card] EVENT RECEIVED:', {
+        announcementCourseId,
+        cardId,
+        match: announcementCourseId === cardId,
+        courseTitle: announcement.title,
+        isEnrolled
+      });
       
+      // Match announcement to this card's course
       if (announcementCourseId === cardId) {
+        console.log('[Card] ✅ Course match! Updating badge');
         // WhatsApp-style: Always set to 1 if badge is 0, else increment
         setNewAnnouncementCount((prev) => {
           const updated = prev === 0 ? 1 : prev + 1;
           localStorage.setItem(`announcementCount_${id}`, updated);
-          console.log('Updated announcement count for course', cardId, ':', updated);
+          console.log('[Card] Badge count updated:', updated);
           return updated;
         });
       }
     };
     
+    console.log('[Card] ✅ Socket listener attached for course:', id);
     socket.on('newAnnouncement', handleNewAnnouncement);
+    
     return () => {
+      console.log('[Card] ❌ Socket listener removed for course:', id);
       socket.off('newAnnouncement', handleNewAnnouncement);
     };
-  }, [id, isEnrolled]);
+  }, [id]);
 
   // Sync state with localStorage if changed elsewhere
   useEffect(() => {

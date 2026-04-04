@@ -20,22 +20,28 @@ export function setupSocket(server) {
   });
 
   io.on('connection', (socket) => {
-    console.log('New user connected:', socket.id);
+    console.log('[Socket.io] 🔌 New user connected:', socket.id);
     
     // Join room for each course the user is enrolled in
     socket.on('joinCourses', (courseIds) => {
       if (Array.isArray(courseIds)) {
+        console.log(`[Socket.io] User ${socket.id} requesting to join courses:`, courseIds);
+        
         courseIds.forEach(courseId => {
           const roomName = `course_${courseId}`;
           socket.join(roomName);
+          console.log(`[Socket.io] ✅ User ${socket.id} joined room ${roomName}`);
         });
-        console.log(`User ${socket.id} joined course rooms:`, courseIds.map(id => `course_${id}`));
+        
+        console.log(`[Socket.io] User ${socket.id} successfully joined ${courseIds.length} course rooms`);
+      } else {
+        console.log(`[Socket.io] ⚠️ courseIds is not an array:`, courseIds);
       }
     });
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+      console.log('[Socket.io] 🔌 User disconnected:', socket.id);
     });
   });
 }
@@ -53,7 +59,18 @@ export function emitAnnouncement(courseId, announcement) {
       updatedAt: announcement.updatedAt
     };
     
-    console.log(`Emitting announcement to room ${roomName}:`, announcementToSend.title);
+    // Get room info for debugging
+    const room = io.sockets.adapter.rooms.get(roomName);
+    const roomSize = room ? room.size : 0;
+    
+    console.log(`[Socket.io] 📢 Emitting announcement ${announcementToSend.title}`);
+    console.log(`[Socket.io] Room: ${roomName}, Connected users in room: ${roomSize}`);
+    console.log(`[Socket.io] Data:`, announcementToSend);
+    
     io.to(roomName).emit('newAnnouncement', announcementToSend);
+    
+    console.log(`[Socket.io] ✅ Announcement sent to ${roomSize} clients in room ${roomName}`);
+  } else {
+    console.log('[Socket.io] ❌ Socket.io not initialized');
   }
 }
