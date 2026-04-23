@@ -12,7 +12,6 @@ export const searchWithAi = async (req, res) => {
       return res.status(400).json({ message: "Search query is required" });
     }
 
-    // ✅ Initialize Gemini AI
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
     });
@@ -45,17 +44,13 @@ Rules:
 Query: ${input}
 `;
 
-    // ✅ Generate AI response
     const aiResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ text: prompt }],
     });
 
-    // ✅ Extract keyword safely
-    let keyword =
-      aiResponse?.response?.text()?.trim() ||   
-      aiResponse?.text?.()?.trim() ||            
-      "Others";
+    // ✅ CORRECT: response.text is a plain string property
+    let keyword = aiResponse?.text?.trim() || "Others";
 
     // 1️⃣ FIRST SEARCH → Direct user input
     let courses = await Course.find({
@@ -73,9 +68,7 @@ Query: ${input}
       return res.status(200).json(courses);
     }
 
-    // ---------------------------------------------
     // 2️⃣ SECOND SEARCH → AI keyword fallback
-    // ---------------------------------------------
     courses = await Course.find({
       isPublished: true,
       $or: [
@@ -152,23 +145,15 @@ IMPORTANT: Do NOT use horizontal lines (---), do NOT use pipe characters (|), ke
       contents: [{ text: prompt }],
     });
 
-    const summary =
-      aiResponse?.response?.text()              
-      || aiResponse?.text?.()                   
-      || "Summary could not be generated.";
+    // ✅ CORRECT: response.text is a plain string property
+    const summary = aiResponse?.text || "Summary could not be generated.";
 
     return res.status(200).json({ summary });
   } catch (error) {
-    // Improved error logging for debugging
-    console.log("Generate Summary Error:", error);
-    let errorMessage = error?.message || "Unknown error";
-    let errorStack = error?.stack || null;
-    let errorResponse = error?.response?.data || null;
-    return res.status(500).json({ 
-      message: "Failed to generate summary", 
-      error: errorMessage,
-      stack: errorStack,
-      response: errorResponse
+    console.error("Generate Summary Error:", error);
+    return res.status(500).json({
+      message: "Failed to generate summary",
+      error: error.message,
     });
   }
 };
@@ -211,26 +196,34 @@ IMPORTANT: Return ONLY the JSON array, no markdown, no code blocks, no additiona
     const aiResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ text: prompt }],
+      config: {
+        responseMimeType: "application/json", // ✅ Forces clean JSON, no markdown wrapping
+      },
     });
 
-    let quizText =
-      aiResponse?.response?.text()             
-      || aiResponse?.text?.()                 
-      || "[]";
-        
-    // Clean up the response - remove markdown code blocks if present
-    quizText = quizText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
+    // ✅ CORRECT: response.text is a plain string property
+    let quizText = aiResponse?.text || "[]";
+
+    // Cleanup just in case (safety net)
+    quizText = quizText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
     try {
       const quiz = JSON.parse(quizText);
       return res.status(200).json({ quiz });
     } catch (parseError) {
-      console.log("Quiz Parse Error:", parseError);
-      return res.status(500).json({ message: "Failed to parse quiz data", error: parseError });
+      console.error("Quiz Parse Error:", parseError);
+      console.error("Raw quiz text:", quizText);
+      return res.status(500).json({
+        message: "Failed to parse quiz data",
+        error: parseError.message,
+        raw: quizText,
+      });
     }
   } catch (error) {
-    console.log("Generate Quiz Error:", error);
-    return res.status(500).json({ message: "Failed to generate quiz", error });
+    console.error("Generate Quiz Error:", error);
+    return res.status(500).json({
+      message: "Failed to generate quiz",
+      error: error.message,
+    });
   }
 };
-;
