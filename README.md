@@ -24,7 +24,7 @@ The application is split into a React frontend and an Express/MongoDB backend, w
 
 - Role-based access for students, educators, and administrators
 - Course publishing, editing, lecture management, and enrollment tracking
-- Video lecture upload with background transcoding to streaming-ready formats
+- Video lecture upload with automatic background transcoding into multiple resolutions (144p-1080p, capped at the source resolution) and a manual quality switcher on playback
 - Exam creation, question authoring, grading, analytics, and attempt history
 - AI-based proctoring for exam monitoring and violation capture
 - Certification interview flow and downloadable certificates
@@ -82,11 +82,11 @@ sequenceDiagram
 | Frontend | React 19, Vite, React Router, Redux Toolkit, Tailwind CSS, Framer Motion |
 | Backend | Node.js, Express 5, Socket.io, Multer, JWT, bcryptjs |
 | Database | MongoDB, Mongoose |
-| Media & Storage | Cloudinary, FFmpeg, HLS video pipeline |
+| Media & Storage | Cloudinary, FFmpeg (multi-resolution video transcoding) |
 | Payments | Razorpay |
 | Communication | Nodemailer, Socket.io |
-| AI & Automation | Google Gemini, Claude, ElevenLabs, HeyGen, DID, FAL, YOLO-based proctoring service |
-| QA / Utilities | ESLint, Toast notifications, reusable hooks, queue-based background jobs |
+| AI & Automation | Groq (Llama 3.3) for search/summaries/quizzes/certification interviews, YOLOv8-based proctoring service |
+| QA / Utilities | ESLint, Toast notifications, reusable hooks |
 
 ## Folder Structure
 
@@ -97,7 +97,6 @@ sequenceDiagram
 │   ├── controllers/
 │   ├── middlewares/
 │   ├── models/
-│   ├── queue/
 │   ├── routes/
 │   ├── services/
 │   ├── socket.js
@@ -173,7 +172,7 @@ Create a `.env` file in the backend folder and, if needed, one for the frontend.
 | `RAZORPAY_SECRET` | Razorpay key secret |
 | `EMAIL` | Outbound mail account |
 | `EMAIL_PASS` | Mail account password or app password |
-| `GEMINI_API_KEY` | Gemini API key |
+| `GROQ_API_KEY` | Groq API key, used for AI search, lecture summaries, quiz generation, and the certification interview flow |
 | `YOLO_SERVICE_URL` | URL of the YOLO proctoring service |
 
 ### Frontend
@@ -200,7 +199,7 @@ RAZORPAY_SECRET=your_razorpay_secret
 EMAIL=your-email@example.com
 EMAIL_PASS=your-email-password
 
-GEMINI_API_KEY=your_gemini_key
+GROQ_API_KEY=your_groq_key
 
 YOLO_SERVICE_URL=http://localhost:5001
 ```
@@ -244,17 +243,10 @@ Below is a representative overview of the API surface. The backend contains addi
 | Exams | `POST /api/exam/create/:courseId`, `GET /api/exam/course/:courseId`, `POST /api/exam/:examId/start`, `POST /api/exam/attempt/:attemptId/submit`, `GET /api/exam/attempt/:attemptId/result`, `GET /api/exam/student/history` |
 | Proctoring | `POST /api/proctoring/analyze-frame`, `POST /api/proctoring/event/:attemptId`, `POST /api/proctoring/tab-switch/:attemptId`, `GET /api/proctoring/status/:attemptId`, `GET /api/proctoring/dashboard` |
 | Certification | `GET /api/certification/completion/:courseId`, `POST /api/certification/start-interview`, `GET /api/certification/question/:sessionId`, `POST /api/certification/submit-answer`, `GET /api/certification/my-certificates` |
-| Video | `POST /api/video/upload/:courseId/:lectureId`, `GET /api/video/status/:lectureId`, `POST /api/video/retry/:lectureId`, `DELETE /api/video/:lectureId` |
+| AI | `POST /api/ai/search` (course search), `POST /api/ai/summary` (lecture summary), `POST /api/ai/quiz` (auto-generated quiz) |
 | Admin | `GET /api/admin/...` and related educator review routes for teacher and course governance |
 
-## Screenshots
-
-| Screen | Preview |
-| --- | --- |
-| Home page | ![Home page](./docs/screenshots/home.png) |
-| Course dashboard | ![Course dashboard](./docs/screenshots/course-dashboard.png) |
-| Exam workflow | ![Exam workflow](./docs/screenshots/exam-flow.png) |
-| Certification result | ![Certification result](./docs/screenshots/certificate.png) |
+Video transcoding does not have a separate route group - it's triggered as part of the existing lecture upload flow (`POST /api/course/editlecture/:lectureId`). Uploading a video kicks off background transcoding into a resolution ladder (144p-1080p, capped at the source resolution); progress is tracked directly on the lecture document via `processingStatus` (`processing` / `ready` / `failed`) and a `renditions` array, and a lecture only becomes visible to enrolled students once it's `ready`.
 
 ## Future Improvements
 
